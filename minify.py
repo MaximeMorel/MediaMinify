@@ -10,9 +10,10 @@
 #
 # Requirements:
 # python
-# convert (imagemagick)
+# gm convert (graphicsmagick)
 # ffmeg
-# ufraw-batch (gimp-ufraw), for CR2 convertion
+# ufraw-batch (gimp-ufraw), for CR2 convertion (with imagemagick)
+# dcraw, for CR2 convertion (with graphicsmagic)
 
 # Usage:
 # ./minify.py | tee logs/minify-$(date +%F-%T).log
@@ -22,6 +23,17 @@ import os
 import time
 import subprocess
 import shutil
+
+def getRatio(src, dst):
+	srcsize = os.stat(src).st_size
+	try:
+		dstsize = os.stat(dst).st_size
+	except BaseException as err:
+		dstsize = 0
+		print('error: ', src, '->', dst, ' - ', err)
+		#pass
+	ratio = dstsize / srcsize
+	return ratio
 
 print('Picture and video minification script')
 
@@ -66,15 +78,8 @@ for root, dirs, files in os.walk('.'):
 		if extension in ['.jpg', '.jpeg', '.bmp', '.png', '.cr2']:
 			fulldstpath = interdstpath + '.jpg'
 			if not os.path.exists(fulldstpath):
-				subprocess.run(["convert", "-quality", "85", fullsrcpath, fulldstpath])
-				srcsize = os.stat(fullsrcpath).st_size
-				try:
-					dstsize = os.stat(fulldstpath).st_size
-				except BaseException as err:
-					dstsize = 0
-					print('Error: ', fullsrcpath, '->', fulldstpath, ' - ', err)
-					#pass
-				ratio = dstsize / srcsize
+				subprocess.run(["gm", "convert", "-quality", "85", fullsrcpath, fulldstpath])
+				ratio = getRatio(fullsrcpath, fulldstpath)
 				print('convert: ', os.path.join(fullsrcpath), '->', fulldstpath, "{0:.2f}".format(ratio))
 				if ratio >= 1.0:
 					print('  keep original file')
@@ -84,15 +89,8 @@ for root, dirs, files in os.walk('.'):
 		elif extension in ['.mov', '.mp4', '.wmv', '.mod', '.mpg', '.avi', '.mts', '.mkv']:
 			fulldstpath = interdstpath + '.mkv'
 			if not os.path.exists(fulldstpath):
-				subprocess.run(["ffmpeg", "-y", "-i", fullsrcpath, "-vf", "yadif=0:-1:0",  fulldstpath])
-				srcsize = os.stat(fullsrcpath).st_size
-				try:
-					dstsize = os.stat(fulldstpath).st_size
-				except BaseException as err:
-					dstsize = 0
-					print('Error: ', fullsrcpath, '->', fulldstpath, ' - ', err)
-					#pass
-				ratio = dstsize / srcsize
+				subprocess.run(["ffmpeg", "-y", "-i", fullsrcpath, "-c:v", "libx265", "-vf", "yadif=0:-1:0",  fulldstpath])
+				ratio = getRatio(fullsrcpath, fulldstpath)
 				print('ffmpeg: ', os.path.join(fullsrcpath), '->', fulldstpath, "{0:.2f}".format(ratio))
 				#time.sleep(1)
 			else:
@@ -102,4 +100,5 @@ for root, dirs, files in os.walk('.'):
 			subprocess.run(["cp", "-a", fullsrcpath, fulldstpath])
 		else:
 			print('unknown ', fullsrcpath)
+		sys.stdout.flush()
 
