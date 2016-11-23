@@ -28,6 +28,9 @@
 # Compare dates of src and dst file. If src is newer, regenerate minified file.
 # Fix files and folder permissions.
 
+# 2016/11/23
+# Add some stats at the end of execution
+
 import sys
 import os
 import time
@@ -39,7 +42,16 @@ class Minifier:
 	def __init__(self):
 		self.base = 'photos_originals'
 		self.newbase = 'photos_minified'
-		self.quality = "85"
+		self.quality = '85'
+		self.numImagesProcessed = 0
+		self.numImagesKept = 0
+		self.numImagesSkipped = 0
+		self.numVideosProcessed = 0
+		self.numVideosKept = 0
+		self.numVideosSkipped = 0
+		self.numDotFiles = 0
+		self.numMiscFiles = 0
+		self.numUnknownFiles = 0
 
 	def setParams(self, argv):
 		if len(argv) >= 2:
@@ -75,10 +87,10 @@ class Minifier:
 		return False
 
 	def run(self):
-		print("Working directory: ", os.getcwd())
-		print("Source: ", self.base)
-		print("Destination: ", self.newbase)
-		print("Quality: ", self.quality)
+		print('Working directory: ', os.getcwd())
+		print('Source: ', self.base)
+		print('Destination: ', self.newbase)
+		print('Quality: ', self.quality)
 
 		print('Proceed? ')
 		res = input()
@@ -114,6 +126,7 @@ class Minifier:
 				fullsrcpath = join(self.base, srcpath)
 				if basefile.startswith('.'):
 					print('dot file: ', fullsrcpath)
+					self.numDotFiles += 1
 					continue
 				if extension in ['.jpg', '.jpeg', '.bmp', '.png', '.cr2']:
 					dstpath = normpath(interdstpath + '.jpg')
@@ -124,8 +137,12 @@ class Minifier:
 						if ratio >= 1.0:
 							print('  keep original file')
 							shutil.copy2(srcpath, dstpath)
+							self.numImagesKept += 1
+						else:
+							self.numImagesProcessed += 1
 					else:
 						print('skip: ', fullsrcpath, '->', dstpath)
+						self.numImagesSkipped += 1
 				elif extension in ['.mov', '.mp4', '.wmv', '.mod', '.mpg', '.avi', '.mts', '.mkv']:
 					dstpath = normpath(interdstpath + '.mkv')
 					if self.isNewer(srcpath, dstpath):
@@ -135,20 +152,42 @@ class Minifier:
 						if ratio >= 1.0:
 							print('  keep original file')
 							shutil.copy2(srcpath, dstpath)
+							self.numVideosKept += 1
+						else:
+							self.numVideosProcessed += 1
 						#time.sleep(1)
 					else:
 						print('skip: ', fullsrcpath, '->', dstpath)
+						self.numVideosSkipped += 1
 				elif extension in ['.zip', '.pdf', '.txt', '.sh', '.thm']:
 					print('copy: ', fullsrcpath, '->', dstpath)
 					#subprocess.run(["cp", "-a", srcpath, dstpath])
 					shutil.copy2(srcpath, dstpath)
+					self.numMiscFiles += 1
 				else:
 					print('unknown: ', fullsrcpath)
+					self.numUnknownFiles += 1
 				sys.stdout.flush()
+
+	def showStats(self):
+		print('Num images: ' + str(self.numImagesProcessed + self.numImagesKept + self.numImagesSkipped))
+		print('    processed: ' + str(self.numImagesProcessed))
+		print('    kept     : ' + str(self.numImagesKept))
+		print('    skipped  : ' + str(self.numImagesSkipped))
+		print('')
+		print('Num videos: ' + str(self.numVideosProcessed + self.numVideosKept + self.numVideosSkipped))
+		print('    processed: ' + str(self.numVideosProcessed))
+		print('    kept     : ' + str(self.numVideosKept))
+		print('    skipped  : ' + str(self.numVideosSkipped))
+		print('')
+		print('Num dot files    : ' + str(self.numDotFiles))
+		print('Num misc files   : ' + str(self.numMiscFiles))
+		print('Num unknown files: ' + str(self.numUnknownFiles))
 
 if __name__ == '__main__':
 	print('Picture and video minification script')
 	minifier = Minifier()
 	minifier.setParams(sys.argv)
 	minifier.run()
+	minifier.showStats()
 
